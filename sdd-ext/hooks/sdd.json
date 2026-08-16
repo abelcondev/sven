@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "grok-sdd hook stop", "timeout": 15 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "search_replace|apply_patch|edit|write|create_file|str_replace",
+        "hooks": [
+          { "type": "command", "command": "grok-sdd hook pretooluse", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}
