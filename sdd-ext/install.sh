@@ -65,6 +65,11 @@ mkdir -p "$GROK_HOME/hooks"
 cp "$here/hooks/sdd.json" "$GROK_HOME/hooks/sdd.json"
 echo "  + hooks/sdd.json (Stop: inject next step · PreToolUse: branch guard)"
 
+# --- 4. example model config (never clobbers your real config.toml) ----------
+echo "→ installing example model config to $GROK_HOME/config.example.toml"
+cp "$here/grok/config.example.toml" "$GROK_HOME/config.example.toml"
+echo "  + config.example.toml (menu of OpenAI-compatible / Anthropic / local providers)"
+
 echo
 echo "Done."
 case ":$PATH:" in

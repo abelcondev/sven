@@ -32,7 +32,8 @@ bundle:
 	@mkdir -p $(DIST)/_stage/hooks
 	cp -R grok/skills $(DIST)/_stage/skills
 	cp hooks/sdd.json $(DIST)/_stage/hooks/sdd.json
-	tar czf $(DIST)/$(BIN)-assets.tar.gz -C $(DIST)/_stage skills hooks
+	cp grok/config.example.toml $(DIST)/_stage/config.example.toml
+	tar czf $(DIST)/$(BIN)-assets.tar.gz -C $(DIST)/_stage skills hooks config.example.toml
 	rm -rf $(DIST)/_stage
 	@echo "bundled $(DIST)/$(BIN)-assets.tar.gz"
 

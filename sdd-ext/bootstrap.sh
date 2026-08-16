@@ -73,6 +73,10 @@ done
 cp "$tmp/hooks/sdd.json" "$GROK_HOME/hooks/sdd.json"
 echo "  installed skills → $GROK_HOME/skills/sdd-*"
 echo "  installed hooks  → $GROK_HOME/hooks/sdd.json"
+if [[ -f "$tmp/config.example.toml" ]]; then
+  cp "$tmp/config.example.toml" "$GROK_HOME/config.example.toml"
+  echo "  installed model config example → $GROK_HOME/config.example.toml"
+fi
 
 echo
 echo "Done."
