@@ -45,27 +45,35 @@ is the implement-phase turn-budget widening (kez §12) — deliberately deferred
 
 ## Install
 
+One line — downloads a prebuilt binary + the skills/hooks bundle from the latest
+GitHub release. No Go, no clone, no kez:
+
 ```sh
-make build          # or: make crosscompile   (needs Go on the build machine)
+curl -fsSL https://raw.githubusercontent.com/abelcondev/sven/main/sdd-ext/bootstrap.sh | bash
+```
+
+Overridable with `GROK_HOME`, `BIN_DIR`, `GROK_SDD_VERSION`.
+
+### From source
+
+```sh
+make build          # needs Go
 ./install.sh
 ```
 
-`install.sh` installs the binary to `~/.local/bin`, the skills to
-`~/.grok/skills/`, and the hooks to `~/.grok/hooks/sdd.json`. Override with
-`GROK_HOME` and `BIN_DIR`. If a prebuilt binary for your platform exists in
-`./dist`, it is used; otherwise the script builds from source with `go`.
+`install.sh` installs the binary to `~/.local/bin`, skills to `~/.grok/skills/`,
+and hooks to `~/.grok/hooks/sdd.json`. A prebuilt binary in `./dist` is used if
+present; otherwise it builds with `go`.
 
-### Distributing to teammates (no kez required)
-
-The engine is self-contained — it does **not** depend on kez. To ship to people
-without Go:
+### Cutting a release (maintainer)
 
 ```sh
-make crosscompile   # builds dist/grok-sdd-{darwin,linux}-{amd64,arm64}
+make release-assets                               # dist/ binaries + assets tarball
+gh release create vX.Y.Z sdd-ext/dist/grok-sdd-*  # upload as release assets
 ```
 
-Zip this `sdd-ext/` directory (including `dist/`) and share it. Teammates run
-`./install.sh` and the matching prebuilt binary is installed — no Go, no kez.
+The engine is self-contained and does **not** depend on kez, so the release
+works on any teammate's machine.
 
 ## Use
 
