@@ -18,6 +18,20 @@ pub fn is_protected_branch(branch: &str) -> bool {
     matches!(branch.trim(), "main" | "master")
 }
 
+/// Reports whether the SDD loop for the workspace at `root` is currently in the
+/// implement phase — the long TDD (red → green → refactor) + review cycle whose
+/// recommended step loads [`SKILL_IMPLEMENT`]. The current branch is read from
+/// `.git/HEAD` directly (no `git` subprocess), so this is cheap enough to consult
+/// once per turn. Fail-safe: a read error, a missing knowledge base, or any other
+/// loop position returns `false`, so the turn budget only ever *widens* when we
+/// are certain the agent is mid-implement.
+pub fn in_implement_phase(root: &Path) -> bool {
+    let branch = crate::branchguard::current_branch_at(root);
+    read_loop_state(root, &branch)
+        .map(|st| st.next().skill == SKILL_IMPLEMENT)
+        .unwrap_or(false)
+}
+
 /// The resumable position of the SDD loop.
 #[derive(Debug, Clone, Default)]
 pub struct LoopState {
@@ -658,6 +672,68 @@ mod tests {
             "---\ntype: Design\ntitle: DS\ndecision: decisions/002-design-system.md\nstatus: approved\n---\n",
         );
         assert_ne!(must_state(root, "feat/x").next().skill, "sdd-design-system");
+    }
+
+    /// Writes a minimal `.git/HEAD` so `in_implement_phase` can resolve the branch
+    /// the same way a real checkout would.
+    fn set_head(root: &Path, branch: &str) {
+        let git_dir = root.join(".git");
+        fs::create_dir_all(&git_dir).unwrap();
+        fs::write(git_dir.join("HEAD"), format!("ref: refs/heads/{branch}\n")).unwrap();
+    }
+
+    #[test]
+    fn in_implement_phase_true_for_pending_task_on_feature_branch() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        scaffold(root).unwrap();
+        write_artifact(
+            root,
+            "decisions/001-architecture.md",
+            "Decision",
+            "Architecture",
+            "approved",
+        );
+        write_artifact(
+            root,
+            "tasks/002-owner-auth.md",
+            "Task",
+            "Owner auth",
+            "pending",
+        );
+        set_head(root, "feat/owner-auth");
+        assert!(in_implement_phase(root));
+    }
+
+    #[test]
+    fn in_implement_phase_false_on_protected_branch() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        scaffold(root).unwrap();
+        write_artifact(
+            root,
+            "decisions/001-architecture.md",
+            "Decision",
+            "Architecture",
+            "approved",
+        );
+        write_artifact(
+            root,
+            "tasks/002-owner-auth.md",
+            "Task",
+            "Owner auth",
+            "pending",
+        );
+        // On main the recommended step is "branch first", not implement.
+        set_head(root, "main");
+        assert!(!in_implement_phase(root));
+    }
+
+    #[test]
+    fn in_implement_phase_false_without_knowledge_base() {
+        let tmp = tempfile::tempdir().unwrap();
+        set_head(tmp.path(), "feat/x");
+        assert!(!in_implement_phase(tmp.path()));
     }
 
     #[test]

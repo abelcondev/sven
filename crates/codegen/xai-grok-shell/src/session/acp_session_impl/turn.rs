@@ -2080,6 +2080,27 @@ impl SessionActor {
         let mut metrics_drop_guard = TurnMetrics::new();
         let mut turn_tools_called: Vec<String> = Vec::new();
         let mut tool_turn_count: usize = 1;
+        // SDD §12 turn-budget widening. A fixed `max_turns` cap can guillotine the
+        // SDD implement phase (the long TDD red→green→refactor→review cycle) mid-way.
+        // When the workspace is in that phase we widen the per-turn budget so the
+        // cycle isn't cut off. Resolved once per turn — the loop phase can't change
+        // mid-turn — via cheap file reads (branch from `.git/HEAD`, no subprocess).
+        // `None` (unlimited) stays unlimited; other phases keep the configured cap.
+        const SDD_IMPLEMENT_TURN_MULTIPLIER: usize = 3;
+        let effective_max_turns = self.max_turns.map(|limit| {
+            if xai_grok_sdd::loop_state::in_implement_phase(self.tool_context.cwd.as_path()) {
+                let widened = limit.saturating_mul(SDD_IMPLEMENT_TURN_MULTIPLIER);
+                tracing::debug!(
+                    session_id = %self.session_info.id,
+                    base_limit = limit,
+                    widened_limit = widened,
+                    "sdd implement phase: widening max-turns budget"
+                );
+                widened
+            } else {
+                limit
+            }
+        });
         let mut loop_index: u32 = 0;
         let mut identical_tool_calls = IdenticalToolCallRun::default();
         let mut todo_gate_fires: u32 = 0;
@@ -2846,7 +2867,7 @@ impl SessionActor {
                 _ => {}
             }
             let next_turn = tool_turn_count + 1;
-            if let Some(limit) = self.max_turns
+            if let Some(limit) = effective_max_turns
                 && next_turn > limit
             {
                 tracing::info!(

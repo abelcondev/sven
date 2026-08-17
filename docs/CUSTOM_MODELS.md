@@ -97,8 +97,8 @@ context_window = 200000
 
 - One provider can back many models; a model field always overrides the provider
   default (e.g. a per-model `base_url` or `api_key`).
-- `grok-sdd` and the whole SDD layer are model-agnostic — they drive whatever model
-  grok is configured to use, so this composes with the loop unchanged.
+- The `sdd` tool and the whole SDD loop are model-agnostic — they drive whatever
+  model grok is configured to use, so this composes with the loop unchanged.
 - Deeper personalization that *does* need a Rust change (e.g. a bundled default
   provider, a `~/.grok/models.json` merge, per-model auth-scheme tweaks) is
   optional polish — see the fork's roadmap. For just "use more models," this file

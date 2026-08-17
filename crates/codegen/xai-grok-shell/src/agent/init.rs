@@ -173,6 +173,9 @@ fn init_process(cfg: &AgentConfig, auth_manager: &AuthManager) {
 
         let grok_home = crate::util::grok_home::grok_home();
         crate::builtin::extract_builtin_files(&grok_home);
+        // Self-extract the embedded SDD phase skills so the loop ships in a single
+        // binary (no `sdd-ext/` installer). Version-gated + non-destructive.
+        xai_grok_sdd::skills::extract(&grok_home, xai_grok_version::VERSION);
         if !cfg!(test) {
             // Deletes dirs; must never touch a unit-test process's real home.
             crate::builtin::purge_stale_extracted_skills(&grok_home);

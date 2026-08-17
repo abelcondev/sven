@@ -7,8 +7,10 @@
 //! It is a pure library: it owns the OKF knowledge base on disk (`sdd/`), the
 //! resumable loop advisor ([`loop_state`]), the ceremony-weight classifier
 //! ([`tier`]), the deterministic route advisor ([`route`]), the branch guard
-//! ([`branchguard`]), and the code-length quality gate ([`qualitygate`]). It has
-//! no CLI and no I/O beyond the workspace filesystem and git metadata files.
+//! ([`branchguard`]), the code-length quality gate ([`qualitygate`]), and the
+//! embedded phase skills self-extracted to `$GROK_HOME/skills/` ([`skills`]) so
+//! the whole loop ships in one `grok` binary. It has no CLI; its only I/O is the
+//! workspace filesystem, git metadata files, and that one-time skill extraction.
 
 pub mod branchguard;
 pub mod cli;
@@ -18,6 +20,7 @@ pub mod propose;
 pub mod qualitygate;
 pub mod route;
 pub mod scaffold;
+pub mod skills;
 pub mod tier;
 mod util;
 

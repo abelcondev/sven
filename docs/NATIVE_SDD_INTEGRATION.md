@@ -186,19 +186,67 @@ can't compile due to a **pre-existing** `base64::Engine`-import bug in a
 synced-from-monorepo test file, `tool_layer_images_bridge_tests.rs` — unrelated to
 this change; not fixed here to avoid touching unrelated synced code.)
 
-### Phase 5 — §12 turn-budget widening
+### Phase 5 — §12 turn-budget widening — ✅ DONE (2026-08-16)
 - Detect the implement phase from `LoopState` and bump `max_turns` for that turn
-  where it's resolved (`agent_ops.rs`), so TDD red→green→refactor→review isn't
-  cut off mid-cycle.
+  where it's resolved, so TDD red→green→refactor→review isn't cut off mid-cycle.
 
 **Deliverable:** implement-phase turns get the wider budget; other phases unchanged.
 
-### Phase 6 — Distribution cleanup
+**Status.** Engine gained `loop_state::in_implement_phase(root) -> bool` — resolves
+the branch cheaply from `.git/HEAD` (new `branchguard::current_branch_at`, no `git`
+subprocess), reads `LoopState`, and returns `next().skill == SKILL_IMPLEMENT`.
+Fail-safe: any read error or non-implement position returns `false`, so the budget
+only ever *widens* when we're certain. In `xai-grok-shell` the resolution point was
+**not** `agent_ops.rs` (that resolves the cap once at session spawn) but the per-turn
+loop in `session/acp_session_impl/turn.rs::process_conversation_turn`. There the
+`max_turns` check (`next_turn > limit`, ~line 2849) now compares against a per-turn
+`effective_max_turns`, computed once at turn start (~line 2082): when
+`in_implement_phase(self.tool_context.cwd)` it multiplies the configured cap by
+`SDD_IMPLEMENT_TURN_MULTIPLIER = 3` (`saturating_mul`); otherwise the cap is
+unchanged. `None` (unlimited) stays unlimited. Computed once per turn (the phase
+can't change mid-turn) → no per-tool-call cost. 63 engine tests green (+3 for
+`in_implement_phase`: feature-branch pending task → true, protected branch → false,
+no knowledge base → false), engine clippy+fmt clean, `xai-grok-shell` lib checks
+clean.
+
+### Phase 6 — Distribution cleanup — ✅ DONE (2026-08-16)
 - Delete `sdd-ext/engine/` (Go), `sdd-ext/hooks/sdd.json`, the crosscompile path.
 - Embed or ship the skills via a slim installer (or bundle them in-binary).
 - One binary: `grok`. Update `README.md` / `install.sh`.
 
 **Deliverable:** friends install a single `grok` binary; no Go, no separate hooks.
+
+**Status.** Chose the strongest form of the deliverable — **embed the skills in the
+binary**, no installer at all. The 9 phase skills moved from `sdd-ext/grok/skills/`
+into the engine crate at `crates/common/xai-grok-sdd/assets/skills/sdd-*/SKILL.md`
+and are `include_str!`-embedded by a new `skills` module
+(`xai-grok-sdd/src/skills.rs`): `SKILLS: &[(name, body)]` + `extract(grok_home,
+version)`. `extract` mirrors the built-in metadata extractor — version-gated via a
+`.sdd_skills_version` marker (no-op when unchanged, so it never clobbers a user's
+post-extract edits; rewrites canonical bodies on a version bump so skill fixes ship
+with the upgrade), best-effort (per-file failures logged, marker only stamped once a
+skill lands so a failed run retries). Wired with a **single line** in the synced
+`xai-grok-shell/src/agent/init.rs::init_process` (`Once`-guarded startup, right after
+`extract_builtin_files`): `xai_grok_sdd::skills::extract(&grok_home,
+xai_grok_version::VERSION)`. Added `tracing` to the engine's deps for the logging.
+grok-build discovers the extracted skills from `$GROK_HOME/skills/<name>/SKILL.md`
+through its normal skill-discovery chain (they're not in the platform
+`FORMER_PLATFORM_SKILL_HASHES` purge table, so they're never purged).
+
+**Deleted:** the entire `sdd-ext/` tree — the Go engine (`engine/`, superseded by
+`xai-grok-sdd`), prebuilt binaries (`dist/`), `hooks/sdd.json` (was already `{}`),
+`Makefile` (crosscompile/bundle), `install.sh` + `bootstrap.sh` (Go install path),
+`.gitignore`, `README.md` (legacy layer doc), and `grok/config.example.toml`
+(redundant — `docs/CUSTOM_MODELS.md` already carries the provider examples inline).
+Zero `.go` files remain; the only residual `sdd-ext` mentions are two explanatory
+code comments. Updated the one stale `grok-sdd` reference in `CUSTOM_MODELS.md` to
+name the `sdd` tool. Root `README.md` needed no change — its install section is
+grok-build's own binary installer, and the SDD loop now rides inside that one binary.
+
+**Verification:** 68 engine tests green (+5 for `skills`: frontmatter/name match,
+the nine-skill roster, extract writes all + marker, same-version preserves edits,
+version-bump restores canonical). Engine clippy + fmt clean; `xai-grok-shell` lib
+checks clean.
 
 ---
 

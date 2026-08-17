@@ -146,6 +146,17 @@ fn resolve_git_dir(root: &Path) -> Option<PathBuf> {
     }
 }
 
+/// Resolves the checked-out branch for the work-tree containing `start`, reading
+/// only `.git/HEAD` (no `git` subprocess). Returns `""` for a detached HEAD, a
+/// non-git path, or an unreadable HEAD. Walks up to the repo root, so a session
+/// cwd nested inside the repo resolves correctly.
+pub fn current_branch_at(start: &Path) -> String {
+    find_git_root(start)
+        .and_then(|root| resolve_git_dir(&root))
+        .map(|git_dir| current_branch(&git_dir))
+        .unwrap_or_default()
+}
+
 /// Reads the checked-out branch from HEAD, returning `""` for a detached HEAD or
 /// an unreadable HEAD.
 fn current_branch(git_dir: &Path) -> String {

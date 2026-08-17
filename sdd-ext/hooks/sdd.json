@@ -1,4 +1,0 @@
-{
-  "//": "Native SDD: BOTH SDD hooks were removed. The Stop hook (Phase 3) returned additionalContext every turn, which grok treats as `wants_continuation` — forcing autonomous continuation (the runaway on a plain 'hola'). The PreToolUse branch guard (Phase 4) is now a native pre-execution check in xai-grok-shell's tool pipeline (prepare_tool_call → xai_grok_sdd::branchguard::check), so no subprocess per edit. This file no longer registers any hooks; it (and the whole sdd-ext/ layer) is deleted in Phase 6.",
-  "hooks": {}
-}

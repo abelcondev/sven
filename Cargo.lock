@@ -14059,6 +14059,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "tempfile",
+ "tracing",
 ]
 
 [[package]]
