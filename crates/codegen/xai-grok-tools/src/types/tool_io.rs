@@ -84,6 +84,7 @@ pub enum ToolInput {
     CodexReadFile(CodexReadFileInput),
     MemorySearch(MemorySearchInput),
     MemoryGet(MemoryGetInput),
+    Sdd(crate::implementations::sdd::SddInput),
     SearchTool(SearchToolInput),
     UseTool(UseToolInput),
     EnterPlanMode(EnterPlanModeInput),

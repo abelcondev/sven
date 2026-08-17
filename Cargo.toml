@@ -87,6 +87,7 @@ members = [
     "crates/common/xai-computer-hub-mcp-adapter",
     "crates/common/xai-computer-hub-sdk",
     "crates/common/xai-grok-compaction",
+    "crates/common/xai-grok-sdd",
     "crates/common/xai-interjection-core",
     "crates/common/xai-test-utils",
     "crates/common/xai-tool-protocol",

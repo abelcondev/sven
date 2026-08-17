@@ -14053,6 +14053,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "xai-grok-sdd"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
 name = "xai-grok-secrets"
 version = "0.1.0"
 dependencies = [
@@ -14246,6 +14256,7 @@ dependencies = [
  "xai-grok-sampler",
  "xai-grok-sampling-types",
  "xai-grok-sandbox",
+ "xai-grok-sdd",
  "xai-grok-session-events",
  "xai-grok-session-search",
  "xai-grok-shared",
@@ -14491,6 +14502,7 @@ dependencies = [
  "xai-grok-env",
  "xai-grok-extra-ca",
  "xai-grok-sandbox",
+ "xai-grok-sdd",
  "xai-grok-test-support",
  "xai-grok-tools-api",
  "xai-grok-version",
