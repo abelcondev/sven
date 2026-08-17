@@ -16,6 +16,7 @@ commands, searches the web, and manages long-running tasks — interactively,
 headlessly for scripting/CI, or embedded in editors via the Agent Client
 Protocol (ACP).
 
+[Install this fork](#install-this-fork-grok-with-the-native-sdd-loop) ·
 [Installing the released binary](#installing-the-released-binary) ·
 [Building from source](#building-from-source) ·
 [Documentation](#documentation) ·
@@ -38,7 +39,28 @@ for the version of the code present in this tree.
 
 ---
 
+## Install this fork (`grok` with the native SDD loop)
+
+This fork compiles the Spec-Driven Development loop **into** the `grok` binary —
+no Go, no separate hooks, no extra install step for the loop. Build and install
+it from source with one command (macOS / Linux):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/abelcondev/sven/main/install.sh | bash
+grok --version
+```
+
+The installer checks for a Rust toolchain (installing DotSlash if needed), clones
+into `~/.sven/src`, builds the release binary, and installs it as `grok` in
+`~/.local/bin`. The first build takes a few minutes; re-run the command any time to
+update. Once installed, launch `grok` and drive the built-in `sdd` tool
+(`init` · `propose` · `next`). The upstream install below does **not** include the
+SDD loop.
+
 ## Installing the released binary
+
+> Installs SpaceXAI's upstream `grok` — **without** this fork's SDD loop. Use the
+> one-liner above for the fork.
 
 Prebuilt binaries are published for macOS, Linux, and Windows:
 
