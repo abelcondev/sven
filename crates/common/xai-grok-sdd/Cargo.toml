@@ -1,0 +1,17 @@
+[package]
+license = "Apache-2.0"
+name = "xai-grok-sdd"
+version = "0.1.0"
+edition.workspace = true
+description = "Spec-Driven Development loop engine: OKF knowledge base, loop advisor, branch guard, and quality gate (ported from the kez/grok-sdd Go engine)"
+authors = ["xAI"]
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

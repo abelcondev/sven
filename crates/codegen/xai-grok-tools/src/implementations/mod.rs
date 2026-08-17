@@ -8,6 +8,7 @@ pub mod lsp;
 pub mod memory;
 pub mod opencode;
 pub mod read_file;
+pub mod sdd;
 pub mod search_tool;
 pub mod skills;
 pub mod task_output;

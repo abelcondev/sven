@@ -19,15 +19,11 @@ This step is **resumable**. A previous turn may have run out of budget partway t
 
 1. **Pre-flight and close the task** in one step:
 
-   ```
-   grok-sdd ship <task-name> [--residual "<one-line finding>" ...]
-   ```
+   First run the pre-flight checks yourself: verify you are on the proposal's feature branch (not `main`/`master`), confirm `origin` is set and reachable (`git remote get-url origin` + `git ls-remote origin HEAD`), and confirm `gh auth status` shows the right account authenticated. If any check fails, fix it before continuing.
 
-   `ship` runs a **pre-flight first** (branch is a feature branch, `origin` exists and is reachable via `ls-remote`, `gh` is authenticated as the right account) and only closes the task if it passes — so a renamed/deleted remote or the wrong account fails **loudly and early**, never after you've built the commit. If pre-flight fails, fix the ✗ it prints (bad remote URL, wrong `gh` account) before continuing; the task stays open. It is idempotent: re-running on an already-closed task just reprints the proposal's PR state.
+   Then close the task by calling the `sdd` tool with `action: "done"` and `args: ["<task-name>"]`. Pass each residual medium/low review finding you consciously accepted as `residual: ["…"]` (repeatable); each becomes a tracked follow-up task on the same decision instead of a line that dies in the merged PR body. Its output prints the proposal's task checklist (done/pending) and whether the proposal is now complete — use that checklist verbatim for the PR body in step 5, and its verdict for step 6.
 
-   Pass each residual medium/low review finding you consciously accepted as `--residual "…"`; each becomes a tracked follow-up task on the same decision instead of a line that dies in the merged PR body. Its output prints the proposal's task checklist (done/pending) and whether the proposal is now complete — use that checklist verbatim for the PR body in step 5, and its verdict for step 6.
-
-   (`grok-sdd done <task-name>` still exists as the close-only path and also accepts `--residual`; prefer `ship` so the pre-flight always runs before you push.)
+   (The `done` action is idempotent: calling it on an already-closed task just reprints the proposal's PR state.)
 
 2. **One PR per proposal.** All tasks of a proposal share one branch and land in a single PR. Never open a PR per task.
 
@@ -59,16 +55,11 @@ This step is **resumable**. A previous turn may have run out of budget partway t
 
 ## After merge
 
-Once the PR is merged, prune the merged branch and get the next step:
+Once the PR is merged, prune the merged branch yourself and get the next step:
 
-```
-grok-sdd cleanup   # deletes merged sdd/prop-*/feat/* branches, config-write-safe
-grok-sdd next
-```
+Delete the merged proposal branch with git (e.g. `git branch -D <branch>`). Note: `ship`/`cleanup` are not native `sdd` actions yet (Phase 2b), so branch cleanup is done manually with git rather than through the tool. Then call the `sdd` tool with `action: "next"` to get back to the top of the loop: the next task or the next proposal.
 
-`cleanup` uses `git update-ref -d`, not `git branch -d`, so it never hits the `.git/config` write the sandbox refuses (which otherwise leaves a "could not write config file … Operation not permitted" after deleting the branch). Then it's back to the top of the loop: the next task or the next proposal.
-
-`grok-sdd ship` (and `done`) print a `▶ Next step` block with a `then:` horizon. Always relay it to the user as a short hand-off — `✅ Hecho: … · ▶ Sigue: … — ¿lo hago?` — so they never end a turn unsure what comes next.
+The `sdd` tool's `done` action prints a `▶ Next step` block with a `then:` horizon. Always relay it to the user as a short hand-off — `✅ Hecho: … · ▶ Sigue: … — ¿lo hago?` — so they never end a turn unsure what comes next.
 
 ## Anti-patterns
 
@@ -76,6 +67,6 @@ grok-sdd next
 - ❌ A separate PR for each task of the same proposal.
 - ❌ Marking the PR ready (or opening it non-draft) while tasks of the proposal are still pending.
 - ❌ `git push -u …` — the `-u` fails in the sandbox; push without it.
-- ❌ Committing/pushing before the pre-flight — a bad remote or wrong `gh` account then fails only after the work is built. Run `grok-sdd ship` (or `grok-sdd preflight`) first.
+- ❌ Committing/pushing before the pre-flight — a bad remote or wrong `gh` account then fails only after the work is built. Always run the pre-flight checks (branch, remote reachability, `gh auth status`) before pushing.
 - ❌ Opening a second PR when the proposal already has one — reuse it and refresh its body.
 - ❌ Closing without listing what the human still has to verify manually.

@@ -9,7 +9,7 @@ Build the task with test-driven discipline, on a feature branch, and carry it al
 
 ## Order of operations
 
-1. **Stay on the proposal's branch.** `grok-sdd propose` already opened this proposal's branch (`sdd/prop-<slug>`); all of its tasks share it — one branch, one PR. You should already be on it, so implement here. Only if HEAD somehow sits on `main`/`master` (a compiled guard refuses code writes there), return to the proposal's branch — check `git branch --list 'sdd/prop-*'` — or, as a fallback, `git checkout -b feat/<decision-slug>`.
+1. **Stay on the proposal's branch.** The `sdd` tool's `propose` action already opened this proposal's branch (`sdd/prop-<slug>`); all of its tasks share it — one branch, one PR. You should already be on it, so implement here. Only if HEAD somehow sits on `main`/`master` (a compiled guard refuses code writes there), return to the proposal's branch — check `git branch --list 'sdd/prop-*'` — or, as a fallback, `git checkout -b feat/<decision-slug>`.
 
 2. **TDD: red → green → refactor.** Write the failing test first, then the minimal code to pass, then refactor. Translate each **Given/When/Then** acceptance criterion into a test. For the test conventions (only `.test.ts` code tests, dedicated folder, what the agent writes vs. what the human verifies manually), load **`sdd-test`**.
 
@@ -19,11 +19,7 @@ Build the task with test-driven discipline, on a feature branch, and carry it al
 
 5. **Review before you ship.** Once green, load **`sdd-review`**: a fresh-context pass over the diff across two lenses — correctness + security, and craft/maintainability (a reviewer subagent that flags oversized files, poor wiring, leaked coupling, missed reuse). Remediate the findings in one pass, then re-review. Every high-severity finding must be fixed before closing.
 
-6. **Close and open the PR.** Load **`sdd-ship`** for the pre-flight + close + PR steps:
-
-   ```
-   grok-sdd ship <task-name>
-   ```
+6. **Close and open the PR.** Load **`sdd-ship`** for the pre-flight + close + PR steps. Close the task by calling the `sdd` tool with `action: "done"` and `args: ["<task-name>"]`, then run the ship steps yourself via git/gh (see `sdd-ship`).
 
 ## Working context (`sdd/context.md`)
 
@@ -44,12 +40,12 @@ Each subagent starts with zero context and grounds itself in the on-disk `sdd/` 
 
 - Every `code`-level Given/When/Then has a passing test.
 - Validators pass.
-- `sdd-review` run (both lenses); every high-severity finding fixed, residual medium/low recorded as a follow-up task via `grok-sdd ship <task> --residual "…"` (and noted in the PR).
+- `sdd-review` run (both lenses); every high-severity finding fixed, residual medium/low recorded as a follow-up task via the `sdd` tool with `action: "done"` and `residual: ["…"]` (and noted in the PR).
 - Branch pushed, PR prepared — never merged to the protected branch by you.
 
 ## Always end pointing to the next step
 
-Never end a turn with the user unsure what happens next. `grok-sdd done`/`ship`/`next` print a `▶ Next step` block (with a `then:` horizon) — surface it. Close every turn with a short, consistent hand-off:
+Never end a turn with the user unsure what happens next. The `sdd` tool's `done`, `next`, and `status` actions print a `▶ Next step` block (with a `then:` horizon) — surface it. Close every turn with a short, consistent hand-off:
 
 > ✅ Hecho: <what you just finished>.
 > ▶ Sigue: <the next step's summary> — ¿lo hago?

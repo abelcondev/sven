@@ -27,17 +27,13 @@ A task is the smallest shippable slice with a clear definition of done. It is li
 
 5. **Create it, linked to its decision:**
 
-   ```
-   grok-sdd task <decisions/NNN-name.md> "<task title>"
-   ```
+   Call the `sdd` tool with `action: "task"` and `args: ["decisions/NNN-name.md", "<task title>"]`.
 
    Then fill the Given/When/Then in the generated task file.
 
-6. **Tier is auto-inferred — override only when it's wrong.** grok-sdd classifies the task's weight (`trivial | standard | critical`) from its title/tags and shows it in `grok-sdd next`/`status`; it drives how much design gate and review the task gets. You don't set it normally. Override only when inference misreads the risk — e.g. force `critical` on a task that handles money/auth/data but doesn't say so, or `trivial` on a pure copy/rename:
+6. **Tier is auto-inferred — override only when it's wrong.** The `sdd` tool classifies the task's weight (`trivial | standard | critical`) from its title/tags and shows it in the `next`/`status` actions; it drives how much design gate and review the task gets. You don't set it normally. Override only when inference misreads the risk — e.g. force `critical` on a task that handles money/auth/data but doesn't say so, or `trivial` on a pure copy/rename:
 
-   ```
-   grok-sdd task <decisions/NNN-name.md> "<title>" --tier critical
-   ```
+   Call the `sdd` tool with `action: "task"`, `args: ["decisions/NNN-name.md", "<title>"]`, and `tier: "critical"`.
 
 ## After this
 

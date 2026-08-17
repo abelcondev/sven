@@ -31,9 +31,7 @@ Choosing the stack is the **user's decision**, informed by your research — nev
 
 5. **Persist it — only after the user has okayed the choices:**
 
-   ```
-   grok-sdd propose "Architecture: <stack>, <core libs>, test = <runner> in <folder>, UI = <lib>"
-   ```
+   Call the `sdd` tool with `action: "propose"` and `args: ["Architecture: <stack>, <core libs>, test = <runner> in <folder>, UI = <lib>"]`.
 
    `propose` opens this decision's own branch (`sdd/prop-<slug>`); the doc, its approval, and the code all land in one PR. Then stop at the approval gate.
 

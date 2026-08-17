@@ -73,9 +73,9 @@ There is **one source of truth**: the component module. The workbench imports th
 
 A design change still goes through the gate, on a feature branch (so the app only changes on the branch until reviewed):
 
-1. `grok-sdd design <decisions/NNN-design-system.md> "Button: tighter padding"` — creates a fresh design artifact, in-review.
+1. Call the `sdd` tool with `action: "design"` and `args: ["decisions/NNN-design-system.md", "Button: tighter padding"]` — creates a fresh design artifact, in-review.
 2. The in-review design blocks the loop (the design gate has priority), so the human reviews the changed states live in the workbench.
-3. `grok-sdd approve-design <designs/NNN-slug>` — every consumer already reflects a visual change; no follow-up wiring.
+3. Call the `sdd` tool with `action: "approve-design"` and `args: ["designs/NNN-slug"]` — every consumer already reflects a visual change; no follow-up wiring.
 
 Scope it right: a **fix or improvement to an existing component** is this lightweight pass under the existing `design-system` decision. A **change of design direction** (new token system, a restyle across the board) is a new proposal/decision — record it, because it is a design decision.
 
@@ -92,17 +92,13 @@ Scope it right: a **fix or improvement to an existing component** is this lightw
 
 4. **Record the design and open the gate:**
 
-   ```
-   grok-sdd design <decisions/NNN-design-system.md> "Design system workbench"
-   ```
+   Call the `sdd` tool with `action: "design"` and `args: ["decisions/NNN-design-system.md", "Design system workbench"]`.
 
    In the artifact, link the **running route** — the index (`http://localhost:<port>/design-system`) plus the deep link of each component (`/design-system/<name>`) — and drop a screenshot of each component's section. List the components the workbench now provides.
 
-   ```
-   grok-sdd approve-design <designs/NNN-slug>
-   ```
+   Then call the `sdd` tool with `action: "approve-design"` and `args: ["designs/NNN-slug"]`.
 
-5. **Stop at the gate.** The human opens the route and exercises the components live. Ask them to reply with a short approval (e.g. "aprobado") — don't make them type a command; when they approve, run `grok-sdd approve-design <designs/NNN-slug>` yourself on their behalf. Without approval the loop refuses feature UI — do not route around it.
+5. **Stop at the gate.** The human opens the route and exercises the components live. Ask them to reply with a short approval (e.g. "aprobado") — don't make them type a command; when they approve, call the `sdd` tool with `action: "approve-design"` and `args: ["designs/NNN-slug"]` yourself on their behalf. Without approval the loop refuses feature UI — do not route around it.
 
 ## Recording it in the index
 

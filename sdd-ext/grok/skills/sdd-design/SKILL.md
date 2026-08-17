@@ -32,13 +32,11 @@ The dividing test: *business-agnostic and reusable across features?* → base (w
 
 4. **Record the design and open the gate:**
 
-   ```
-   grok-sdd design <decisions/NNN-name.md> "<screen or flow>"
-   ```
+   Call the `sdd` tool with `action: "design"` and `args: ["decisions/NNN-name.md", "<screen or flow>"]`.
 
    Fill in `## References`, `## Wireframe`, and `## Composition` in the created doc.
 
-5. **Stop at the gate.** The human reads the wireframe + references and checks how you're going to approach the UI. Ask them to reply with a short approval (e.g. "aprobado") — don't make them type a command; when they approve, run `grok-sdd approve-design <designs/NNN-slug>` yourself on their behalf. Without an approved design the loop refuses UI code — do not route around it.
+5. **Stop at the gate.** The human reads the wireframe + references and checks how you're going to approach the UI. Ask them to reply with a short approval (e.g. "aprobado") — don't make them type a command; when they approve, call the `sdd` tool with `action: "approve-design"` and `args: ["designs/NNN-slug"]` yourself on their behalf. Without an approved design the loop refuses UI code — do not route around it.
 
 ## After approval
 

@@ -9,7 +9,7 @@ A second pass with clean context catches blind spots the implementing context mi
 
 ## Scale the review to the task's tier
 
-The task carries a **tier** (shown by `grok-sdd next`/`status`, resolved from its frontmatter or inferred). Match the review depth to it so a placeholder screen doesn't pay the same tax as the payment flow:
+The task carries a **tier** (shown by the `sdd` tool's `next`/`status` actions, resolved from its frontmatter or inferred). Match the review depth to it so a placeholder screen doesn't pay the same tax as the payment flow:
 
 - **trivial** — Lens 0 (cheap greps) + a single correctness pass. Skip the craft subagent and skip round 2. **Do not refactor adjacent files** under review — fix only what the task touched.
 - **standard** (default) — Lens 0 + Lens A + Lens B, with the remediation loop below (round 2 only if round 1 changed code).
@@ -56,8 +56,8 @@ Have it return findings as a list of `{ file, lines, category, severity (high|me
 
 ## Gate
 
-- **Do not run `grok-sdd done` while any high-severity finding is unresolved** — correctness, security, or craft. If you judge one a false positive, say why rather than silently ignoring it.
-- Any **residual medium/low** you consciously chose not to fix must become **tracked work**, not a line that dies in a merged PR body. Pass it to the close step as `grok-sdd ship <task> --residual "<finding>"` (repeatable) so it lands as a follow-up task on the same decision. Still note it in the PR description too, with a one-line justification. Nothing is hidden and nothing is forgotten.
+- **Do not call the `sdd` tool with `action: "done"` while any high-severity finding is unresolved** — correctness, security, or craft. If you judge one a false positive, say why rather than silently ignoring it.
+- Any **residual medium/low** you consciously chose not to fix must become **tracked work**, not a line that dies in a merged PR body. Pass it to the close step via the `sdd` tool with `action: "done"` and `residual: ["<finding>"]` (repeatable) so it lands as a follow-up task on the same decision. Still note it in the PR description too, with a one-line justification. Nothing is hidden and nothing is forgotten.
 
 ## What this is not
 

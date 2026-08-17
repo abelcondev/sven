@@ -1174,6 +1174,33 @@ impl SessionActor {
             }
         }
         let access_kind = AccessKind::from(&tool_input);
+        // Native SDD branch guard: refuse code writes on a protected branch when the
+        // repo opted in (a `.grok-sdd/require-branch` marker or GROK_SDD_REQUIRE_BRANCH=on).
+        // Replaces the external `grok-sdd hook pretooluse` PreToolUse hook. Fail-open —
+        // a no-op outside opted-in repos and for non-code (markdown/docs/config) paths.
+        if let xai_grok_workspace::permission::AccessKind::Edit(ref path) = access_kind {
+            let root = self.tool_context.cwd.as_path().to_string_lossy();
+            if let Err(guard) = xai_grok_sdd::branchguard::check(root.as_ref(), path) {
+                tracing::info_span!(
+                    "tool.decision",
+                    tool_name = %call.function.name,
+                    tool_use_id = %call.id,
+                    decision = "deny",
+                    source = "sdd_branch_guard",
+                    wait_ms = 0_i64,
+                )
+                .in_scope(|| {});
+                return Ok(Err(self
+                    .deny_tool(
+                        &call.id,
+                        &tool_call_id,
+                        resolved_tool_name.clone(),
+                        "sdd-branch-guard".to_string(),
+                        guard.to_string(),
+                    )
+                    .await?));
+            }
+        }
         let plan_gate = plan_mode_edit_gate(&self.plan_mode.lock(), &tool_input, &access_kind);
         if plan_gate != PlanEditGate::Allow {
             tracing::info_span!(

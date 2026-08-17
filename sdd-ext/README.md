@@ -1,5 +1,14 @@
 # grok-sdd — Spec-Driven Development layer for grok-build
 
+> **⚠️ LEGACY — being replaced by a native Rust integration.** This external Go
+> binary + hooks layer is superseded by the in-tree crate `crates/common/xai-grok-sdd`
+> and the native `sdd` tool. See `docs/NATIVE_SDD_INTEGRATION.md`. Notably, the **Stop
+> hook described below was removed** (Phase 3): its per-turn `additionalContext` made
+> grok treat every turn as "keep working", forcing autonomous continuation — the cause
+> of the runaway on a plain greeting. The loop's next-step is now surfaced on demand via
+> the passive standing rules and the `sdd` tool's own outputs, neither of which forces
+> continuation. This directory is deleted in Phase 6.
+
 This directory adds a full **Spec-Driven Development (SDD) + unified loop** to the
 grok-build agent, ported from `kez`. It is **additive**: it changes no grok-build
 Rust core. Everything works through grok's existing extension points — skills,

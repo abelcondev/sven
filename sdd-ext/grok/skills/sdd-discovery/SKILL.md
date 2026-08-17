@@ -24,11 +24,9 @@ You are turning a raw idea into a written proposal. **No code, no scaffolding, n
 
 5. **When the what/why is settled, write the proposal** (no code):
 
-   ```
-   grok-sdd propose "<the what & why, in the user's own terms>"
-   ```
+   Call the `sdd` tool with `action: "propose"` and `args: ["<the what & why, in the user's own terms>"]`.
 
-   `propose` opens this proposal's own branch (`sdd/prop-<slug>`) and writes the doc there, so the proposal, its approval, and the implementation all land in a single PR — not on the default branch. Then stop at the approval gate: point the user at `sdd/proposal.md` and ask them to reply with a short approval (e.g. "aprobado") or the changes they want. Don't ask them to type a command — when they approve, run `grok-sdd approve` yourself on their behalf.
+   `propose` opens this proposal's own branch (`sdd/prop-<slug>`) and writes the doc there, so the proposal, its approval, and the implementation all land in a single PR — not on the default branch. Then stop at the approval gate: point the user at `sdd/proposal.md` and ask them to reply with a short approval (e.g. "aprobado") or the changes they want. Don't ask them to type a command — when they approve, call the `sdd` tool with `action: "approve"` yourself on their behalf.
 
 ## After approval
 
