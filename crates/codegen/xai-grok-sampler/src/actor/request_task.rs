@@ -408,6 +408,13 @@ async fn apply_retry_decision(
                     error_code: Some(ApiErrorCode::InvalidImage),
                     ..
                 } if status.as_u16() == 400 => StripReason::ServerRejected,
+                // A text-only model rejecting the `image_url` content variant
+                // is as deterministic and permanent as an invalid-image 400:
+                // the image can never work with this model, so it persists out
+                // of stored history instead of being re-sent every turn.
+                SamplingError::Api { .. } if err.is_vision_unsupported_error() => {
+                    StripReason::ServerRejected
+                }
                 SamplingError::Api { .. }
                 | SamplingError::StreamError { .. }
                 | SamplingError::Auth { .. }

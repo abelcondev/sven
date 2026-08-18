@@ -604,6 +604,38 @@ mod tests {
     }
 
     #[test]
+    fn classify_vision_unsupported_400_strips_images() {
+        // Switched to a text-only model; the history still carries an image.
+        let err = api_err(
+            StatusCode::BAD_REQUEST,
+            "messages[16]: unknown variant `image_url`, expected `text`",
+        );
+        assert!(matches!(
+            classify_error(&err, 0, 5, RATE_LIMIT_RETRY_THRESHOLD),
+            RetryDecision::RetryWithImageStrip
+        ));
+    }
+
+    #[test]
+    fn classify_vision_unsupported_strips_even_with_should_retry_false() {
+        // These serde rejections arrive with x-should-retry:false; the image
+        // guard must intercept before the veto turns it Fatal (stripping
+        // changes the payload, so the server's "don't retry" no longer holds).
+        let err = SamplingError::Api {
+            status: StatusCode::BAD_REQUEST,
+            message: "messages[16]: unknown variant `image_url`, expected `text`".to_string(),
+            model_metadata: None,
+            retry_after_secs: None,
+            should_retry: Some(false),
+            error_code: None,
+        };
+        assert!(matches!(
+            classify_error(&err, 0, 5, RATE_LIMIT_RETRY_THRESHOLD),
+            RetryDecision::RetryWithImageStrip
+        ));
+    }
+
+    #[test]
     fn classify_image_processing_error_500_wrapped_strips_images() {
         let err = api_err(
             StatusCode::INTERNAL_SERVER_ERROR,

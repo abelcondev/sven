@@ -375,6 +375,7 @@ impl SamplingError {
             } if matches!(status.as_u16(), 400 | 500) => {
                 *error_code == Some(ApiErrorCode::InvalidImage)
                     || message.contains("Could not process image")
+                    || message_signals_vision_unsupported(message)
             }
             SamplingError::StreamError { code, .. } => *code == Some(ApiErrorCode::InvalidImage),
             // Explicit like `is_retryable`: a new variant must state its
@@ -390,6 +391,30 @@ impl SamplingError {
             | SamplingError::MaxTokensTruncation
             | SamplingError::DoomLoopDetected { .. } => false,
         }
+    }
+
+    /// The server rejected the request because the *current model does not
+    /// accept image content parts* — the classic "switched from a vision
+    /// model to a text-only one, but the history still carries an image"
+    /// case. A text-only Chat Completions backend deserializing the request
+    /// rejects the `image_url` content variant, e.g.
+    /// `messages[16]: unknown variant \`image_url\`, expected \`text\``.
+    ///
+    /// Unlike a transient image-decode failure, this verdict is deterministic
+    /// and permanent for this model, so — like an invalid-image 400 — it is a
+    /// `ServerRejected` strip: the image can never work here and must leave
+    /// the stored history, not just this one request. Gated to 400 (a serde
+    /// deserialization rejection) so a stray 5xx mentioning `image_url` in a
+    /// stack trace can never destroy a user's images.
+    pub fn is_vision_unsupported_error(&self) -> bool {
+        matches!(
+            self,
+            SamplingError::Api {
+                status,
+                message,
+                ..
+            } if status.as_u16() == 400 && message_signals_vision_unsupported(message)
+        )
     }
 
     pub fn is_retryable(&self) -> bool {
@@ -703,6 +728,24 @@ pub fn is_context_length_error(message: &str) -> bool {
         || m.contains("maximum context length")
         || m.contains("context_length_exceeded")
         || (m.contains("current message") && m.contains("exceeds budget"))
+}
+
+/// Provider text for "this model has no vision, drop the `image_url` content
+/// part". A text-only Chat Completions backend deserializing the request body
+/// rejects the unexpected content variant; the wording varies by provider, so
+/// we match the shared shape: the offending part is `image_url` AND the message
+/// frames it as an unexpected/unsupported/unknown variant. Requiring both parts
+/// keeps unrelated 400s (bad params, quota) from destroying a user's images.
+pub fn message_signals_vision_unsupported(message: &str) -> bool {
+    let m = message.to_ascii_lowercase();
+    m.contains("image_url")
+        && (m.contains("unknown variant")
+            || m.contains("expected `text`")
+            || m.contains("expected \"text\"")
+            || m.contains("does not support image")
+            || m.contains("image input is not supported")
+            || m.contains("no vision")
+            || m.contains("not a vision"))
 }
 
 /// Whether an HTTP status is worth retrying: the same 429 + any 5xx rule CCP
@@ -1436,6 +1479,72 @@ mod tests {
             error_code: None,
         };
         assert!(err.is_image_processing_error());
+    }
+
+    #[test]
+    fn vision_unsupported_400_is_image_processing_and_server_rejected() {
+        // The exact serde rejection a text-only Chat Completions model emits
+        // when the history still carries an image content part.
+        let err = SamplingError::Api {
+            status: StatusCode::BAD_REQUEST,
+            message: "messages[16]: unknown variant `image_url`, expected `text`".into(),
+            model_metadata: None,
+            retry_after_secs: None,
+            should_retry: None,
+            error_code: None,
+        };
+        assert!(
+            err.is_image_processing_error(),
+            "vision-unsupported 400 must trigger the image-strip retry"
+        );
+        assert!(
+            err.is_vision_unsupported_error(),
+            "must classify as a permanent (ServerRejected) strip so it persists"
+        );
+        assert!(!err.is_encrypted_content_error());
+    }
+
+    #[test]
+    fn vision_unsupported_wrong_status_not_detected() {
+        // A 5xx stack trace merely mentioning image_url must not destroy images.
+        let err = SamplingError::Api {
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+            message: "panic: unknown variant `image_url`, expected `text`".into(),
+            model_metadata: None,
+            retry_after_secs: None,
+            should_retry: None,
+            error_code: None,
+        };
+        assert!(
+            !err.is_vision_unsupported_error(),
+            "only a 400 deserialization rejection is the permanent vision verdict"
+        );
+    }
+
+    #[test]
+    fn vision_unsupported_requires_both_image_url_and_variant_shape() {
+        // "unknown variant" about some other field is not about images.
+        let unrelated = SamplingError::Api {
+            status: StatusCode::BAD_REQUEST,
+            message: "unknown variant `frobnicate`, expected one of `a`, `b`".into(),
+            model_metadata: None,
+            retry_after_secs: None,
+            should_retry: None,
+            error_code: None,
+        };
+        assert!(!unrelated.is_vision_unsupported_error());
+        assert!(!unrelated.is_image_processing_error());
+
+        // image_url mentioned but not framed as a rejection: leave it alone.
+        let benign = SamplingError::Api {
+            status: StatusCode::BAD_REQUEST,
+            message: "your image_url was accepted".into(),
+            model_metadata: None,
+            retry_after_secs: None,
+            should_retry: None,
+            error_code: None,
+        };
+        assert!(!benign.is_vision_unsupported_error());
     }
 
     #[test]
