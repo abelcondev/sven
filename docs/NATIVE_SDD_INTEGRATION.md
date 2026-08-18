@@ -263,3 +263,40 @@ Two insertion points need a short code read before their phase:
   cherry-pick. Decide a cadence (e.g. review upstream quarterly).
 - Registering a native tool touches a synced file (`registry/types.rs`) — fine
   now that divergence is accepted, but it's the highest-churn upstream file.
+
+---
+
+## Local patches to synced test files (re-apply after a monorepo sync)
+
+These fixes live in files that come from "Synced from monorepo" commits, so a
+future sync can overwrite them and the errors will return. They only surface in
+`cargo test` / rust-analyzer (test targets), not in `cargo check`/build, so
+they're easy to miss. All four verified clean with `cargo check --tests` on the
+affected crates (0 errors, 0 warnings).
+
+- **`xai-fast-worktree/src/api/gc/integration_tests.rs`** — the local `Case`
+  struct declared `expired_removed: usize`, but `GcReport::expired_removed` is
+  `u64`; the `assert_eq!` failed to compile (E0308/E0277, `u64` vs `usize`).
+  Fix: change the field to `u64`.
+- **`xai-grok-shell/src/session/acp_session_tests/tool_layer_images_bridge_tests.rs`**
+  — `base64::…STANDARD.encode(buf)` needs the `base64::Engine` trait in scope
+  (E0599). `support.rs` imports it as `use base64::Engine as _;` *inside a fn*,
+  so the `use super::support::*` glob doesn't carry it. Fix: add
+  `use base64::Engine as _;` inside `vision_ok_png_b64`.
+- **`xai-tty-utils/src/lib.rs`** and **`.../runtime_tests.rs`** — macOS-only
+  unused-import warnings: `Mutex`, `Arc`, `AtomicBool`, `park_blocking_workers`,
+  `release_parked_workers` are used only in `#[cfg(target_os = "linux")]` test
+  code (OOM-score / blocking-pool behavior tests), so on darwin they're unused.
+  Fix **without breaking the Linux build**: `Mutex`/`Arc`/`AtomicBool` gated with
+  `#[cfg(target_os = "linux")]` / `#[cfg_attr(not(target_os = "linux"),
+  allow(unused_imports))]`; `park/release` are private items of the parent
+  `runtime` module already reachable via `use super::*`, so the redundant
+  explicit names were dropped. Do **not** just delete the imports — that
+  regresses Linux.
+
+**Deleted (Option B):** `xai-grok-pager/tests/registered_features_are_documented.rs`
+— it `include_str!`s `docs/internal/25-enterprise.md` +
+`22-environment-variables.md`, xAI-internal operator docs that aren't vendored in
+this fork, so the test can't compile here (os error 2). It's a mirror of internal
+docs that don't apply to the fork; if a future sync re-adds it, `git rm` it again
+(or vendor the docs if you ever want the check back).

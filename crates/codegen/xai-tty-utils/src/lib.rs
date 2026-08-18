@@ -1150,6 +1150,8 @@ fn is_wsl_from_inputs(env: &HashMap<String, String>, osrelease: Option<&str>) ->
 
 #[cfg(test)]
 mod tests {
+    // Only the `#[cfg(target_os = "linux")]` OOM-lock static uses it.
+    #[cfg(target_os = "linux")]
     use std::sync::Mutex;
 
     use super::*;

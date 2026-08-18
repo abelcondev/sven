@@ -1,5 +1,10 @@
-use super::{park_blocking_workers, release_parked_workers, *};
+// `park_blocking_workers` / `release_parked_workers` are private items of the
+// parent `runtime` module, so the glob already brings them in.
+use super::*;
+// Only the `#[cfg(target_os = "linux")]` behavior test uses these.
+#[cfg_attr(not(target_os = "linux"), allow(unused_imports))]
 use std::sync::Arc;
+#[cfg_attr(not(target_os = "linux"), allow(unused_imports))]
 use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
