@@ -248,6 +248,56 @@ the nine-skill roster, extract writes all + marker, same-version preserves edits
 version-bump restores canonical). Engine clippy + fmt clean; `xai-grok-shell` lib
 checks clean.
 
+### Phase 7 — Performance & ceremony tuning — ✅ DONE (2026-08-18)
+
+**Trigger.** A real run in a downstream project (polleria-saas): a single "aprobado"
+on a trivial CRUD design kicked off design→implement→test→review→ship and ran ~46 min
+(model `deepseek-v4-pro`, `always-approve`). Phase 3 killed the *unconditional* runaway;
+this phase attacks the *engaged-loop* cost. Root causes found:
+
+1. **Ceremony scaled by prose, not by the engine.** The engine knew each task's `tier`
+   but never specialized its output — all "scale to tier" logic lived in dense skill
+   prose (`render_next` literally said "load its dense phase rules"). A slow model reads
+   that loosely and defaults to full ceremony every time.
+2. **Full production build re-run in the fix loop** (30s–2min each), not just at ship.
+3. **TDD-first mandated even for a trivial UI composition.**
+4. **Context compaction mid-flow** (43.7s + re-orientation churn) from chain-loading
+   implement→test→review→ship skills inline.
+5. **One-step-then-stop forced N model round-trips** even for a trivial task.
+
+**Changes (all under `xai-grok-sdd` + one shell line):**
+- **Deterministic tier plan (the core fix).** `Tier::plan()` → `TierPlan { tdd,
+  review_rounds, craft_lens, security_lens, batch }` (`tier.rs`). `NextAction` gained a
+  `tier` field (`loop_state.rs`); `cli.rs::render_next` now prints a concrete
+  `plan (<tier>): …` checklist for the implement step instead of pointing at "dense"
+  prose. Behavior no longer hinges on the model interpreting skills correctly.
+- **Trivial batches.** `rules_sdd.md`: a `trivial` task runs implement→review→ship in
+  one turn (`plan` says "all in this one turn"); standard/critical still checkpoint.
+- **Build only at ship.** `sdd-implement`/`sdd-review` run only typecheck+lint+scoped
+  tests in the loop; the single full build moved to `sdd-ship`. Trivial doesn't build in
+  the loop at all.
+- **Slimmer, sharper skills.** implement/review/ship/test/design rewritten tighter and
+  reoriented around the tier plan; `sdd/context.md` anti-compaction guidance reinforced.
+  Trivial loads one skill and follows the plan instead of chain-loading four.
+- **Lighter ship pre-flight** (remote/gh checks once per session, not per task).
+- **Rules propagation to existing projects.** `skills::refresh_project_rules(root,
+  version)` (version-gated, scoped to opted-in SDD projects with an existing rules file)
+  rewrites `.grok/rules/sdd.md` on a binary bump — `init` writes it once and never
+  re-touches, so without this an old project never gets rules fixes. Wired in
+  `init_process` (gated out of tests; writes to project cwd). Same clobber-on-bump
+  tradeoff as the skills extractor. The scaffold `templates/index.md` also updated
+  (stale `kez sdd` → native `sdd` tool; validators split into fast-loop vs build-at-ship).
+
+**Verification:** 71 engine tests green (+2: `tier_plan_scales_ceremony`,
+`render_next_scales_plan_by_tier`, `refresh_project_rules_is_scoped_and_version_gated`),
+engine clippy clean, `xai-grok-shell` compiles. Not yet exercised end-to-end in a live
+downstream run — the next real task in polleria-saas is the field test.
+
+**Note on the dominant factor:** the biggest single lever is the *model* — `deepseek-v4-pro`
+reasoning latency (1m53s/turn observed) × turn count. That's the downstream project's
+config, not sven's; these changes cut the *turn count and per-turn context* so a slow
+model has far fewer/lighter turns to pay for.
+
 ---
 
 ## Recon spikes needed before coding

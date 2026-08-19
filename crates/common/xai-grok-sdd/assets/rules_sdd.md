@@ -13,10 +13,17 @@ The durable state lives on disk under `sdd/` — read it, don't rely on memory.
 - To find where you are, call the `sdd` tool: action `next` gives the single
   recommended step; action `status` gives the fuller picture. It is cheap and
   resumable — prefer it over guessing.
-- Do **one** step, then stop. Never batch the whole loop in a turn. The tool's
-  output names the next step and the phase skill to load first (`sdd-discovery`,
-  `sdd-stack`, `sdd-design-system`, `sdd-design`, `sdd-task`, `sdd-test`,
-  `sdd-implement`, `sdd-review`, `sdd-ship`) — load it, then act.
+- **Follow the `plan (...)` line the tool prints for the implement step** — it
+  scales the ceremony to the task's tier (whether to write tests first, how many
+  review rounds, whether to run the whole tail in one turn). It is authoritative:
+  don't add ceremony the plan didn't ask for. The tool also names the phase skill
+  (`sdd-discovery`, `sdd-stack`, `sdd-design-system`, `sdd-design`, `sdd-task`,
+  `sdd-test`, `sdd-implement`, `sdd-review`, `sdd-ship`) — load it only when you
+  need the detail, not reflexively.
+- **One step, then stop — except a `trivial`-tier task, which runs
+  implement → review → ship in a single turn** (its plan says "all in this one
+  turn"). For `standard`/`critical`, stop after each phase so the user keeps
+  control. Never batch across a human gate (proposal/design approval).
 
 ## Human gates — stop and hand control back
 

@@ -3,7 +3,7 @@
 //! so it is cheap to recompute every turn. Ported from `internal/sdd/loop.go`.
 
 use crate::scaffold::{DIR_NAME, TaskInfo, stem};
-use crate::tier::resolve_tier;
+use crate::tier::{Tier, resolve_tier};
 use crate::util::{list_artifacts, read_frontmatter};
 use std::collections::HashSet;
 use std::fs;
@@ -72,6 +72,10 @@ pub struct NextAction {
     pub skill: String,
     /// A short, human-readable horizon: the arc that typically follows this step.
     pub then: String,
+    /// The task's tier, when this step implements a task. Drives the deterministic
+    /// ceremony checklist the renderer emits (TDD? review rounds? batch?), so the
+    /// scaling doesn't hinge on the model reading dense skill prose correctly.
+    pub tier: Option<Tier>,
 }
 
 /// Inspects `<root>/sdd` plus the given git `branch` (pass `""` if unknown or
@@ -245,13 +249,14 @@ impl LoopState {
             let tier = task.tier;
             return NextAction {
                 summary: format!(
-                    "Implement pending task {label} [tier: {tier}] (TDD: red → green), review at that tier, then ship it with `grok-sdd ship {}`. One PR per proposal.",
+                    "Implement pending task {label} [tier: {tier}], review at that tier, then ship it with `grok-sdd ship {}`. One PR per proposal.",
                     task.name
                 ),
                 skill: SKILL_IMPLEMENT.into(),
                 then: format!(
-                    "TDD → review (tier {tier}) → grok-sdd ship → next task, or mark PR ready when the proposal is done"
+                    "implement → review (tier {tier}) → grok-sdd ship → next task, or mark PR ready when the proposal is done"
                 ),
+                tier: Some(tier),
                 ..Default::default()
             };
         }

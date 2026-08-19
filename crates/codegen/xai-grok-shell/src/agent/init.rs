@@ -179,6 +179,13 @@ fn init_process(cfg: &AgentConfig, auth_manager: &AuthManager) {
         if !cfg!(test) {
             // Deletes dirs; must never touch a unit-test process's real home.
             crate::builtin::purge_stale_extracted_skills(&grok_home);
+            // Refresh an already-init'ed SDD project's standing rules on a version
+            // bump (init writes them once and never re-touches), so rules fixes
+            // reach existing projects like any binary upgrade. No-op outside an
+            // SDD project; writes to the project cwd, so gated out of tests.
+            if let Ok(cwd) = std::env::current_dir() {
+                xai_grok_sdd::skills::refresh_project_rules(&cwd, xai_grok_version::VERSION);
+            }
         }
 
         crate::extensions::marketplace::purge_default_skills_installs(&grok_home);

@@ -13,8 +13,8 @@ Open Knowledge Format (OKF). It is read first at the start of every session.
 ## The loop
 
 Everything is one loop — discovery, stack, architecture, foundations, and every
-feature are all passes through it. Run `kez sdd next` any time to get the single
-next step from disk state; do only that step, and stop at every gate.
+feature are all passes through it. Use the `sdd` tool (action "next") any time to
+get the single next step from disk state; do only that step, and stop at every gate.
 
 ```
 propose (what & why, no code)
@@ -23,9 +23,15 @@ propose (what & why, no code)
     → [if UI] design (→ designs/NNN)     ── human gate: components in the /design-system workbench
     → task (Gherkin acceptance)
     → branch: one feature branch per proposal (feat/NNN-slug)
-    → implement (TDD: red → green), close with `kez sdd done`
+    → implement — scaled to the task's tier (the `sdd` tool's `plan (...)` line),
+      then review, then close via the `sdd` tool (action "done")
     → one PR per proposal → merge → back to propose
 ```
+
+The implement loop scales to the task's **tier**: `trivial` composes from existing
+components (no test-first) and runs implement → review → ship in one turn;
+`standard`/`critical` write tests first, review across both lenses, and checkpoint
+between phases. The `sdd` tool prints the exact plan — follow it.
 
 ## Branch & PR policy
 
@@ -62,7 +68,8 @@ For product UI the design step is a lightweight spec — the user's visual refer
 - Runner & file pattern: <e.g. Vitest, *.test.ts> / <go test, *_test.go>.
 - Location: <dedicated tests/ mirroring src/, or colocated>.
 - Import path: <the alias tests use, e.g. $lib / ~/ — NOT deep relative ../../..>.
-- Validators (the loop runs these before review): <test / typecheck / lint / build commands>. -->
+- Fast validators (run in the implement/review loop): <test / typecheck / lint commands>.
+- Full build (run ONCE at ship, not per fix — it's the slowest check): <build command>. -->
 
 ## Cheap review checks
 

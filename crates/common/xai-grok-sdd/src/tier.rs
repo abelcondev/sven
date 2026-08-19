@@ -27,6 +27,64 @@ impl Tier {
             Tier::Critical => "critical",
         }
     }
+
+    /// The concrete implement-phase loop for this tier. The engine renders this
+    /// into the next-step block so the ceremony scales deterministically instead
+    /// of depending on the model correctly interpreting dense skill prose (a slow
+    /// model reads "scale to tier" loosely and defaults to full ceremony).
+    pub fn plan(self) -> TierPlan {
+        match self {
+            // A copy tweak or a screen composed only of existing base components:
+            // no test-first ceremony, one shallow review, and the whole tail may
+            // run in a single turn.
+            Tier::Trivial => TierPlan {
+                tdd: false,
+                review_rounds: 1,
+                craft_lens: false,
+                security_lens: false,
+                batch: true,
+            },
+            // The default feature: TDD, both craft + correctness lenses, a second
+            // round only if the first changed code. Checkpoint between phases.
+            Tier::Standard => TierPlan {
+                tdd: true,
+                review_rounds: 2,
+                craft_lens: true,
+                security_lens: false,
+                batch: false,
+            },
+            // Money, auth, or data mutation: full ceremony, both rounds always,
+            // security lens mandatory.
+            Tier::Critical => TierPlan {
+                tdd: true,
+                review_rounds: 2,
+                craft_lens: true,
+                security_lens: true,
+                batch: false,
+            },
+        }
+    }
+}
+
+/// The concrete, model-facing loop a task's tier prescribes. Every field maps to
+/// one ceremony knob the review/implement skills otherwise scale by prose. A full
+/// production build never runs in the fix loop for any tier — it runs once at ship
+/// — so that is a global rule, not a tier knob here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TierPlan {
+    /// Write the failing test first (TDD). Off for trivial (a composed screen's
+    /// logic, if any, is still tested — but not test-first).
+    pub tdd: bool,
+    /// Maximum review rounds (round 2 runs only if round 1 changed code; critical
+    /// always runs both).
+    pub review_rounds: u8,
+    /// Run Lens B — the fresh-context craft/maintainability reviewer.
+    pub craft_lens: bool,
+    /// Security lens is mandatory (never skipped) for this tier.
+    pub security_lens: bool,
+    /// The implement → review → ship tail may run in a single turn (no per-phase
+    /// stop). True only for trivial, where the checkpoints cost more than they save.
+    pub batch: bool,
 }
 
 impl std::fmt::Display for Tier {
@@ -160,6 +218,16 @@ mod tests {
     #[test]
     fn infer_tier_critical_beats_trivial() {
         assert_eq!(infer_tier("auth login placeholder screen"), Tier::Critical);
+    }
+
+    #[test]
+    fn tier_plan_scales_ceremony() {
+        let t = Tier::Trivial.plan();
+        assert!(!t.tdd && t.batch && t.review_rounds == 1 && !t.craft_lens && !t.security_lens);
+        let s = Tier::Standard.plan();
+        assert!(s.tdd && !s.batch && s.review_rounds == 2 && s.craft_lens && !s.security_lens);
+        let c = Tier::Critical.plan();
+        assert!(c.tdd && !c.batch && c.review_rounds == 2 && c.craft_lens && c.security_lens);
     }
 
     #[test]

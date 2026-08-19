@@ -1,59 +1,54 @@
 ---
 name: sdd-implement
-description: Use when implementing a pending SDD task — TDD red→green→refactor on a feature branch, honoring the task's Given/When/Then, then chain to sdd-test, sdd-review, and sdd-ship before closing. One PR per proposal.
+description: Use when implementing a pending SDD task — build it on the proposal's feature branch scaled to the task's tier (the `sdd` tool prints the `plan (...)` line), then carry it through review to a PR. One PR per proposal.
 ---
 
 # Implement
 
-Build the task with test-driven discipline, on a feature branch, and carry it all the way through review to a PR. This skill orchestrates the tail of the loop.
+Build the task, then carry it through review to a PR. **The `sdd` tool's `plan (...)` line is authoritative** — it scales the loop to the task's tier. Don't add ceremony it didn't ask for.
 
 ## Order of operations
 
-1. **Stay on the proposal's branch.** The `sdd` tool's `propose` action already opened this proposal's branch (`sdd/prop-<slug>`); all of its tasks share it — one branch, one PR. You should already be on it, so implement here. Only if HEAD somehow sits on `main`/`master` (a compiled guard refuses code writes there), return to the proposal's branch — check `git branch --list 'sdd/prop-*'` — or, as a fallback, `git checkout -b feat/<decision-slug>`.
+1. **Stay on the proposal's branch.** `propose` already opened it (`sdd/prop-<slug>`); all its tasks share one branch, one PR. If HEAD somehow sits on `main`/`master` (a compiled guard refuses code writes there), return to it — `git branch --list 'sdd/prop-*'` — or fall back to `git checkout -b feat/<decision-slug>`.
 
-2. **TDD: red → green → refactor.** Write the failing test first, then the minimal code to pass, then refactor. Translate each **Given/When/Then** acceptance criterion into a test. For the test conventions (only `.test.ts` code tests, dedicated folder, what the agent writes vs. what the human verifies manually), load **`sdd-test`**.
+2. **Write the code, scaled to tier.**
+   - Plan says **TDD** (standard/critical): failing test first → minimal code to pass → refactor. Translate each **Given/When/Then** into a test (see `sdd-test`).
+   - Plan says **no test-first** (trivial): compose the screen/change from existing base components and code it directly. Still cover any real logic (a calculation, a reducer) with a plain test — just not test-first, and don't test a pure composition.
+   - Either way: smallest diff that fully solves the task, in the surrounding style. No speculative abstraction, no unrelated refactors, no dependency churn.
 
-3. **Match the codebase.** Smallest diff that fully solves the task, in the surrounding style. No speculative abstraction, no unrelated refactors, no dependency churn the task did not require.
+3. **Validate the change — but don't full-build in the loop.** Run the fast validators scoped to the diff (**typecheck + lint + the scoped tests**) as recorded in `sdd/index.md`. **The full production build runs once, at ship — never after each fix** (it's the slowest check and re-running it per edit is where turns are lost). Never proceed while the fast validators fail.
 
-4. **Run the validators** scoped to the change — tests, typecheck, lint, build — as recorded in `sdd/index.md`. Never proceed while they fail.
+4. **Review** — load `sdd-review` and review at the task's tier (the plan says how deep). Fix every high-severity finding before closing.
 
-5. **Review before you ship.** Once green, load **`sdd-review`**: a fresh-context pass over the diff across two lenses — correctness + security, and craft/maintainability (a reviewer subagent that flags oversized files, poor wiring, leaked coupling, missed reuse). Remediate the findings in one pass, then re-review. Every high-severity finding must be fixed before closing.
-
-6. **Close and open the PR.** Load **`sdd-ship`** for the pre-flight + close + PR steps. Close the task by calling the `sdd` tool with `action: "done"` and `args: ["<task-name>"]`, then run the ship steps yourself via git/gh (see `sdd-ship`).
+5. **Close + ship** — load `sdd-ship`: close the task via the `sdd` tool (`action: "done"`, `args: ["<task-name>"]`), then run the ship steps. A **trivial** task does steps 2–5 in **one turn** (its plan says "all in this one turn"); standard/critical stop after each phase.
 
 ## Working context (`sdd/context.md`)
 
-Before implementing, read `sdd/context.md` — it holds the proposal's already-discovered surface (API shapes, store/module methods, key file paths, gotchas) so you don't re-explore the same files a previous turn already mapped. As you discover a stable fact worth the *next* turn not re-deriving, record it there under this proposal's branch heading — keep it a short map, not a log. This is what survives context compaction; lean on it instead of re-reading the backend each turn. When the proposal's PR merges, clear its section.
+Before implementing, read `sdd/context.md` — the proposal's already-discovered surface (API shapes, store/module methods, key paths, gotchas) so you don't re-explore what a previous turn already mapped. As you find a stable fact worth the *next* turn not re-deriving, record it there under this proposal's heading — a short map, not a log. **This is what survives context compaction: lean on it instead of re-reading the backend, and update it before a long step so a compaction mid-task doesn't force a full re-orientation.** Clear the proposal's section when its PR merges.
 
 ## Delegating to fresh-context subagents (optional)
 
-If your harness can spawn subagents (e.g. grok's `/workflow`), you can hand a phase to a fresh-context agent — smallest useful route, so delegate only where fresh context or parallelism pays:
-
-- **coding a task** — a single, fully-specified task (its Given/When/Then are written). Spawn one per independent task to build them in parallel, briefing each with only the task ref.
-- **exploration** — read-heavy investigation before implementing (where does X live, how is Y wired). Read-only, returns a conclusion.
-- **planning** — drafting a proposal/decision or breaking work into tasks (see `sdd-discovery`, `sdd-stack`, `sdd-task`).
-- **review** — at the review gate, for independence (see `sdd-review`).
-
-Each subagent starts with zero context and grounds itself in the on-disk `sdd/` artifacts, so brief it with the task/decision ref rather than pasting context. It inherits your model, sandbox, and permission mode — never more authority. If your harness has no subagents, just do these phases inline; the loop does not depend on delegation.
+If your harness can spawn subagents (grok's `/workflow`), hand a phase to a fresh-context agent where fresh context or parallelism pays: **coding** a fully-specified task, **exploration** (read-only), **planning**, or **review** (for independence). Each starts with zero context and grounds itself in the on-disk `sdd/` artifacts — brief it with the task/decision ref, not pasted context. It inherits your model, sandbox, and permissions — never more. No subagents? Do the phases inline; the loop doesn't depend on delegation.
 
 ## Definition of done
 
-- Every `code`-level Given/When/Then has a passing test.
-- Validators pass.
-- `sdd-review` run (both lenses); every high-severity finding fixed, residual medium/low recorded as a follow-up task via the `sdd` tool with `action: "done"` and `residual: ["…"]` (and noted in the PR).
+- Every `code`-level Given/When/Then the plan required has a passing test.
+- Fast validators pass (full build verified at ship).
+- `sdd-review` run at tier; every high-severity finding fixed, residual medium/low recorded via `done` with `residual: ["…"]` and noted in the PR.
 - Branch pushed, PR prepared — never merged to the protected branch by you.
 
-## Always end pointing to the next step
+## Hand-off
 
-Never end a turn with the user unsure what happens next. The `sdd` tool's `done`, `next`, and `status` actions print a `▶ Next step` block (with a `then:` horizon) — surface it. Close every turn with a short, consistent hand-off:
+Close every turn with the tool's `▶ Next step` block, surfaced short:
 
-> ✅ Hecho: <what you just finished>.
-> ▶ Sigue: <the next step's summary> — ¿lo hago?
+> ✅ Hecho: <what you finished>.
+> ▶ Sigue: <next step> — ¿lo hago?
 
-If it's a human gate (approval), say so and wait. If it's automated work, offer to proceed. The user should always see the immediate next step and where it leads without having to ask.
+At a human gate, say so and wait. Otherwise offer to proceed.
 
 ## Anti-patterns
 
 - ❌ Writing code on `main`.
-- ❌ Implementation before the test (that is not TDD).
-- ❌ Marking the task done with failing validators or unaddressed review findings.
+- ❌ Running the full production build after every fix (build at ship, not in the loop).
+- ❌ TDD ceremony or a craft subagent on a trivial composition the plan didn't ask for.
+- ❌ Marking done with failing validators or unaddressed high-severity findings.

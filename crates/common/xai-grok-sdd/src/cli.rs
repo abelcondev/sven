@@ -343,16 +343,61 @@ fn render_next(a: &NextAction) -> String {
             s.push_str(&format!("  → {}\n", a.command));
         }
     }
-    if !a.skill.is_empty() {
-        s.push_str(&format!(
-            "  skill: load `{}` first (its dense phase rules), then act\n",
-            a.skill
-        ));
+    // For the implement step the engine prescribes the loop deterministically by
+    // tier, so the model doesn't have to derive the ceremony from dense skill prose
+    // (a slow model reads it loosely and defaults to full ceremony every time).
+    if let Some(tier) = a.tier {
+        s.push_str(&render_tier_plan(tier));
+        if !a.skill.is_empty() {
+            let hint = if tier == crate::tier::Tier::Trivial {
+                "load only if you need the detail"
+            } else {
+                "load for the phase detail"
+            };
+            s.push_str(&format!("  skill: `{}` — {hint}\n", a.skill));
+        }
+    } else if !a.skill.is_empty() {
+        s.push_str(&format!("  skill: load `{}` first, then act\n", a.skill));
     }
     if !a.then.is_empty() {
         s.push_str(&format!("  then: {}\n", a.then));
     }
     s
+}
+
+/// Renders the tier's concrete implement→review→ship loop as a single `plan` line.
+/// This is the deterministic ceremony scaling: the model follows these knobs rather
+/// than re-deriving "how much review does this deserve?" from prose each turn.
+fn render_tier_plan(tier: crate::tier::Tier) -> String {
+    let p = tier.plan();
+    let test = if p.tdd {
+        "TDD (failing test first) → green → refactor"
+    } else {
+        "compose from existing base components — no test-first (cover any real logic with a plain test)"
+    };
+    let build = if tier == crate::tier::Tier::Trivial {
+        "typecheck + lint only (no full build until ship)"
+    } else {
+        "typecheck + lint + scoped tests (full build runs once at ship, not per fix)"
+    };
+    let review = match (p.craft_lens, p.security_lens, p.review_rounds) {
+        (false, _, _) => {
+            "one inline correctness review (no craft subagent, no round 2)".to_string()
+        }
+        (true, false, _) => {
+            "review both lenses (correctness + craft), round 2 only if round 1 changed code"
+                .to_string()
+        }
+        (true, true, _) => {
+            "review both lenses, security lens mandatory, both rounds always".to_string()
+        }
+    };
+    let close = if p.batch {
+        "close + ship — all in this one turn"
+    } else {
+        "checkpoint, then ship"
+    };
+    format!("  plan ({tier}): {test} · {build} · {review} · {close}\n")
 }
 
 /// Reads `<root>/.git/HEAD`, returning `""` when detached, outside a repo, or a
@@ -553,6 +598,35 @@ mod tests {
             done.contains("done") && done.contains("Next step"),
             "done:\n{done}"
         );
+    }
+
+    #[test]
+    fn render_next_scales_plan_by_tier() {
+        use crate::loop_state::NextAction;
+        use crate::tier::Tier;
+        let base = NextAction {
+            summary: "Implement 006-caja".into(),
+            skill: "sdd-implement".into(),
+            ..Default::default()
+        };
+        let trivial = render_next(&NextAction {
+            tier: Some(Tier::Trivial),
+            ..base.clone()
+        });
+        assert!(trivial.contains("plan (trivial)"), "{trivial}");
+        assert!(trivial.contains("no test-first"), "{trivial}");
+        assert!(trivial.contains("all in this one turn"), "{trivial}");
+        assert!(trivial.contains("load only if you need"), "{trivial}");
+
+        let critical = render_next(&NextAction {
+            tier: Some(Tier::Critical),
+            ..base
+        });
+        assert!(critical.contains("security lens mandatory"), "{critical}");
+        assert!(critical.contains("both rounds always"), "{critical}");
+        assert!(critical.contains("checkpoint, then ship"), "{critical}");
+        // The "dense phase rules" phrasing that invited heavy loading is gone.
+        assert!(!critical.contains("dense"), "{critical}");
     }
 
     #[test]

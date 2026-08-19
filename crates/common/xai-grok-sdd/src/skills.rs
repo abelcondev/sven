@@ -11,6 +11,10 @@ use std::path::Path;
 /// version bump re-extracts fresh bodies without rewriting on every startup.
 const VERSION_MARKER: &str = ".sdd_skills_version";
 
+/// The marker (under a project's `.grok-sdd/`) recording the version whose rules
+/// file was last written, so a bump refreshes it without rewriting every startup.
+const RULES_VERSION_MARKER: &str = ".sdd_rules_version";
+
 /// `(skill name, SKILL.md body)` for every SDD phase skill, embedded at compile
 /// time. The name is both the directory and the frontmatter `name:`.
 pub const SKILLS: &[(&str, &str)] = &[
@@ -89,6 +93,50 @@ pub fn extract(grok_home: &Path, version: &str) {
     tracing::debug!(version, "extracted SDD skills");
 }
 
+/// Refreshes an already-`init`ed SDD project's standing rules
+/// (`<project_root>/.grok/rules/sdd.md`) to the canonical template on a version
+/// bump. `init` writes that file once and never re-touches it, so without this an
+/// existing project (e.g. one scaffolded months ago) never picks up rules fixes
+/// when its `grok` binary upgrades.
+///
+/// Scoped and version-gated to stay a cheap, safe no-op:
+/// - acts only when the project opted into SDD (`<root>/sdd/` exists) **and**
+///   already has a rules file — it refreshes, never creates (`init` owns creation);
+/// - the marker lives at `<root>/.grok-sdd/.sdd_rules_version`; when it already
+///   records `version` this is one file read and returns.
+///
+/// Same tradeoff as [`extract`]: a version bump rewrites the canonical body, so a
+/// user's local edits to `.grok/rules/sdd.md` are replaced on upgrade — rules
+/// fixes must ship. Best-effort: failures are logged, never fatal.
+pub fn refresh_project_rules(project_root: &Path, version: &str) {
+    if !project_root.join(crate::scaffold::DIR_NAME).is_dir() {
+        return; // not an SDD project
+    }
+    let rules = project_root.join(".grok").join("rules").join("sdd.md");
+    if !rules.exists() {
+        return; // init owns creation; nothing to refresh
+    }
+    let marker_dir = project_root.join(".grok-sdd");
+    let marker = marker_dir.join(RULES_VERSION_MARKER);
+    if let Ok(existing) = std::fs::read_to_string(&marker)
+        && existing.trim() == version
+    {
+        return;
+    }
+    if let Err(e) = std::fs::write(&rules, crate::cli::RULES_TEMPLATE) {
+        tracing::debug!(error = %e, "failed to refresh SDD project rules");
+        return;
+    }
+    if let Err(e) = std::fs::create_dir_all(&marker_dir) {
+        tracing::debug!(error = %e, "failed to create SDD marker dir");
+        return;
+    }
+    if let Err(e) = std::fs::write(&marker, version) {
+        tracing::debug!(error = %e, "failed to write SDD rules version marker");
+    }
+    tracing::debug!(version, "refreshed SDD project rules");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -155,6 +203,43 @@ mod tests {
         // Same version → no-op, edit survives.
         extract(home, "1.0.0");
         assert_eq!(std::fs::read_to_string(&edited).unwrap(), "my local edit");
+    }
+
+    #[test]
+    fn refresh_project_rules_is_scoped_and_version_gated() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        // No sdd/ dir → no-op even if a rules file somehow exists.
+        refresh_project_rules(root, "1.0.0");
+        assert!(!root.join(".grok-sdd/.sdd_rules_version").exists());
+
+        // An SDD project without a rules file → init owns creation, still no-op.
+        std::fs::create_dir_all(root.join("sdd")).unwrap();
+        refresh_project_rules(root, "1.0.0");
+        assert!(!root.join(".grok/rules/sdd.md").exists());
+
+        // With a stale rules file → refreshed to canonical, marker stamped.
+        let rules = root.join(".grok/rules/sdd.md");
+        std::fs::create_dir_all(rules.parent().unwrap()).unwrap();
+        std::fs::write(&rules, "stale rules").unwrap();
+        refresh_project_rules(root, "1.0.0");
+        assert_eq!(
+            std::fs::read_to_string(&rules).unwrap(),
+            crate::cli::RULES_TEMPLATE
+        );
+
+        // Same version → no rewrite (a local edit survives).
+        std::fs::write(&rules, "user edit").unwrap();
+        refresh_project_rules(root, "1.0.0");
+        assert_eq!(std::fs::read_to_string(&rules).unwrap(), "user edit");
+
+        // Version bump → canonical restored.
+        refresh_project_rules(root, "2.0.0");
+        assert_eq!(
+            std::fs::read_to_string(&rules).unwrap(),
+            crate::cli::RULES_TEMPLATE
+        );
     }
 
     #[test]
